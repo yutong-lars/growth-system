@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>每日成长</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- 顶部状态栏 -->
+<header class="top-bar" id="top-bar">
+  <span class="top-bar-time" id="top-bar-title">每日成长</span>
+  <span class="top-bar-action" id="top-bar-action"></span>
+</header>
+
+<!-- ==================== 首页：今日卡片 ==================== -->
+<main class="page active" id="page-home">
+  <div class="greeting" id="greeting">早安</div>
+
+  <div class="card card-entry" id="today-card">
+    <div class="card-badge">
+      <span class="card-domain" id="card-domain">人际交往</span>
+      <span class="card-module" id="card-module">沟通基础</span>
+      <span class="card-day" id="card-day">Day 1</span>
+    </div>
+
+    <div class="card-knowledge-box" id="card-knowledge">
+      <div class="card-knowledge-icon">📖</div>
+      <div class="card-knowledge-text" id="card-knowledge-text">
+        非暴力沟通第一条：区分观察和评价。观察是你看到的具体事实，评价是你给对方贴的标签。当我们用评价代替观察，沟通就失效了。
+      </div>
+    </div>
+
+    <div class="card-question-box">
+      <div class="card-question-icon">💭</div>
+      <div class="card-question-text" id="card-question-text">
+        回想你最近一次与人发生分歧的时刻。你是在描述事实，还是在下判断？
+      </div>
+    </div>
+
+    <div class="card-action-box">
+      <div class="card-action-icon">🎯</div>
+      <div class="card-action-text" id="card-action-text">
+        今日行动：记录一次对话，区分其中的"观察"和"评价"
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btn-start" onclick="App.openCard()">开始今日反思</button>
+  </div>
+
+  <div class="streak-bar" id="streak-bar">
+    <span>🔥 已连续 <strong id="streak-count">0</strong> 天</span>
+  </div>
+
+  <div class="hint-completed hidden" id="hint-completed">
+    <div class="check-mark">✨</div>
+    <p>今日反思已完成</p>
+    <button class="btn-ghost" onclick="App.openCard()">回顾今日卡片</button>
+  </div>
+</main>
+
+<!-- ==================== 回答页 ==================== -->
+<main class="page" id="page-answer">
+  <div class="answer-scroll">
+    <div class="answer-badge">
+      <span id="answer-domain">人际交往</span> · <span id="answer-module">沟通基础</span> · <span id="answer-day">Day 1</span>
+    </div>
+
+    <section class="answer-section">
+      <h3 class="answer-label">📖 今日知识</h3>
+      <div class="answer-knowledge" id="answer-knowledge"></div>
+    </section>
+
+    <section class="answer-section">
+      <h3 class="answer-label">❓ 今天的问题</h3>
+      <div class="answer-question" id="answer-question"></div>
+    </section>
+
+    <section class="answer-section">
+      <h3 class="answer-label">✍️ 你的反思</h3>
+      <textarea class="answer-textarea" id="answer-textarea" placeholder="在这里写下你的思考和感受..."></textarea>
+    </section>
+
+    <section class="answer-section">
+      <h3 class="answer-label">🎯 今日行动</h3>
+      <div class="answer-action-text" id="answer-action-text"></div>
+      <label class="action-check">
+        <input type="checkbox" id="action-done">
+        <span>我完成了今日行动</span>
+      </label>
+    </section>
+  </div>
+
+  <div class="answer-footer">
+    <button class="btn-primary full" id="btn-submit" onclick="App.submitAnswer()">提交今日反思</button>
+  </div>
+</main>
+
+<!-- ==================== 反馈页 ==================== -->
+<main class="page" id="page-feedback">
+  <div class="feedback-hero">
+    <div class="feedback-icon">✨</div>
+    <h2>今日反思已完成</h2>
+  </div>
+
+  <section class="feedback-section">
+    <h3 class="feedback-label">📊 成长进度</h3>
+    <div class="progress-card" id="feedback-progress">
+      <div class="progress-domain" id="fb-domain"></div>
+      <div class="progress-module" id="fb-module"></div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="fb-bar"></div>
+      </div>
+      <div class="progress-text" id="fb-progress-text"></div>
+      <div class="progress-next" id="fb-next"></div>
+    </div>
+  </section>
+
+  <section class="feedback-section">
+    <h3 class="feedback-label">📚 推荐扩展知识</h3>
+    <div class="extend-card" id="feedback-extend">
+      <div class="extend-title" id="fb-extend-title"></div>
+      <div class="extend-body" id="fb-extend-body"></div>
+    </div>
+  </section>
+
+  <section class="feedback-section">
+    <h3 class="feedback-label">📅 你的历史回答</h3>
+    <div class="history-list" id="feedback-history"></div>
+  </section>
+
+  <button class="btn-primary full" onclick="App.goHome()">返回首页</button>
+</main>
+
+<!-- ==================== 成长地图 ==================== -->
+<main class="page" id="page-map">
+  <h2 class="page-title">🗺️ 我的成长地图</h2>
+  <div class="map-list" id="map-list"></div>
+  <button class="btn-outline full" id="btn-add-domain" onclick="App.showAddDomain()">+ 添加新领域</button>
+</main>
+
+<!-- ==================== 领域管理 & 诊断 ==================== -->
+<main class="page" id="page-domains">
+  <h2 class="page-title">📚 成长领域管理</h2>
+
+  <section class="domain-section">
+    <h3 class="section-title">我选择的领域</h3>
+    <div class="domain-select-list" id="domain-select-list"></div>
+    <button class="btn-ghost small" onclick="App.showAddDomain()">+ 添加领域</button>
+  </section>
+
+  <section class="domain-section">
+    <h3 class="section-title">🔍 你的成长洞察</h3>
+    <div class="insight-list" id="insight-list">
+      <p class="insight-empty">完成更多反思后，系统会在这里给出洞察</p>
+    </div>
+  </section>
+
+  <section class="domain-section">
+    <h3 class="section-title">📊 定期评估</h3>
+    <p class="section-desc" id="assessment-status">本周评估将在周五自动弹出</p>
+  </section>
+</main>
+
+<!-- ==================== 我的档案 ==================== -->
+<main class="page" id="page-profile">
+  <h2 class="page-title">👤 我的档案</h2>
+
+  <div class="profile-stats" id="profile-stats">
+    <div class="stat-item">
+      <div class="stat-num" id="stat-total">0</div>
+      <div class="stat-label">累计反思</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-domains">0</div>
+      <div class="stat-label">覆盖领域</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-streak">0</div>
+      <div class="stat-label">当前连续</div>
+    </div>
+  </div>
+
+  <section class="profile-section">
+    <h3 class="section-title">📝 全部回答</h3>
+    <div class="filter-row">
+      <select class="filter-select" id="filter-domain" onchange="App.renderAnswers()">
+        <option value="all">全部领域</option>
+      </select>
+    </div>
+    <div class="answer-list" id="answer-list"></div>
+  </section>
+
+  <section class="profile-section">
+    <h3 class="section-title">⚙️ 数据管理</h3>
+    <div class="data-actions">
+      <button class="btn-outline" onclick="App.exportData()">📥 导出备份 JSON</button>
+      <button class="btn-outline" onclick="document.getElementById('import-file').click()">📤 导入备份</button>
+      <input type="file" id="import-file" class="hidden" accept=".json" onchange="App.importData(event)">
+      <button class="btn-danger" onclick="App.confirmReset()">🗑 清除所有数据</button>
+    </div>
+  </section>
+</main>
+
+<!-- ==================== 评估页 ==================== -->
+<main class="page" id="page-assessment">
+  <h2 class="page-title">📊 每周成长评估</h2>
+  <p class="assessment-sub">约需 3 分钟</p>
+
+  <div class="assessment-card" id="assessment-card">
+    <div class="assessment-domain" id="assess-domain"></div>
+    <div class="assessment-question" id="assess-question"></div>
+    <div class="assessment-options" id="assess-options"></div>
+  </div>
+
+  <div class="assessment-nav">
+    <button class="btn-ghost" id="btn-assess-prev" onclick="App.assessPrev()">上一题</button>
+    <span class="assessment-progress" id="assess-progress">1/8</span>
+    <button class="btn-ghost" id="btn-assess-next" onclick="App.assessNext()">下一题</button>
+  </div>
+
+  <button class="btn-primary full hidden" id="btn-assess-submit" onclick="App.assessSubmit()">提交评估</button>
+</main>
+
+<!-- ==================== 添加领域弹窗 ==================== -->
+<div class="modal-overlay hidden" id="modal-add-domain">
+  <div class="modal-card">
+    <h3>添加成长领域</h3>
+    <p class="modal-desc">选择一个你想提升的领域，系统会为你生成学习卡片</p>
+    <div class="modal-preset-list" id="preset-domain-list"></div>
+    <div class="modal-custom">
+      <input type="text" class="input-text" id="input-custom-domain" placeholder="或输入自定义领域名称...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="App.hideAddDomain()">取消</button>
+      <button class="btn-primary" onclick="App.addDomain()">确认添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 确认清除弹窗 ==================== -->
+<div class="modal-overlay hidden" id="modal-reset">
+  <div class="modal-card modal-warn">
+    <h3>确认清除</h3>
+    <p>这将删除你所有的反思记录和进度数据。此操作不可撤销。</p>
+    <p class="modal-detail">建议先导出一份备份。</p>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="App.hideReset()">取消</button>
+      <button class="btn-danger" onclick="App.resetData()">确认清除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 底部导航 -->
+<nav class="bottom-nav">
+  <div class="nav-item active" data-page="home" onclick="App.navigate('home')">
+    <span class="nav-icon">🏠</span>
+    <span class="nav-label">首页</span>
+  </div>
+  <div class="nav-item" data-page="map" onclick="App.navigate('map')">
+    <span class="nav-icon">🗺️</span>
+    <span class="nav-label">成长</span>
+  </div>
+  <div class="nav-item" data-page="domains" onclick="App.navigate('domains')">
+    <span class="nav-icon">📚</span>
+    <span class="nav-label">领域</span>
+  </div>
+  <div class="nav-item" data-page="profile" onclick="App.navigate('profile')">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label">档案</span>
+  </div>
+</nav>
+
+<script src="js/storage.js"></script>
+<script src="js/data.js"></script>
+<script src="js/diagnosis.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
