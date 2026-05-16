@@ -104,17 +104,10 @@ const ContentData = {
         ] }
       ]
     },
-    {
-      id: 'psychologist', name: '专属心理师', icon: '🧠', color: '#C68B74',
-      modules: [
-        { id: 'psy-chat', name: '心理陪伴', totalDays: 0, order: 1, cards: [] }
-      ]
-    }
   ],
 
   defaultProgress: {
     'interpersonal__communication-basics': { currentDay: 0, completedAt: [] },
-    'psychologist__psy-chat': { currentDay: 0, completedAt: [] }
   },
 
   /* ==================== 评估题库 ==================== */
@@ -183,7 +176,6 @@ const ContentData = {
     { id: 'self-cognition', name: '自我认知', icon: '🪞' },
     { id: 'emotional-intelligence', name: '情绪管理', icon: '🧘' },
     { id: 'career-growth', name: '职业发展', icon: '🚀' },
-    { id: 'psychologist', name: '专属心理师', icon: '🧠' }
   ],
 
   /* ==================== 题库 · 195题 · 8领域 × 3难度 ==================== */
