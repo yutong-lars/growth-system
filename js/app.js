@@ -99,6 +99,8 @@ const App = {
       document.getElementById('streak-bar').classList.remove('hidden');
       document.getElementById('hint-completed').classList.add('hidden');
     }
+
+    this.renderSnippets();
   },
 
   renderTodayCard() {
@@ -180,6 +182,34 @@ const App = {
       }
     }
     document.getElementById('streak-count').textContent = streak;
+  },
+
+  renderSnippets() {
+    const allSnippets = ContentData.snippets;
+    if (!allSnippets || !allSnippets.length) return;
+
+    // 随机选3条，用日期做种子以保证同一天看到同样的
+    const today = new Date().toISOString().split('T')[0];
+    const seed = today.split('-').reduce((s, n) => s + parseInt(n), 0);
+    const indices = [];
+    while (indices.length < 3 && indices.length < allSnippets.length) {
+      const idx = (seed + indices.length * 7) % allSnippets.length;
+      if (!indices.includes(idx)) indices.push(idx);
+    }
+
+    const container = document.getElementById('snippets-list');
+    container.innerHTML = indices.map(i => {
+      const s = allSnippets[i];
+      return `<div class="snippet-card" onclick="this.querySelector('.snippet-expand').classList.toggle('show')">
+        <div class="snippet-card-header">
+          <span class="snippet-domain-icon">${s.icon}</span>
+          <span class="snippet-domain-name">${s.domain}</span>
+          <span class="snippet-tag">${s.tag}</span>
+        </div>
+        <div class="snippet-body"><strong>${s.title}</strong><br>${s.body}</div>
+        <div class="snippet-expand">${s.extend}</div>
+      </div>`;
+    }).join('');
   },
 
   /* ==================== 打开卡片 → 回答页 ==================== */
@@ -336,14 +366,25 @@ const App = {
       const modulesHtml = domain.modules.map(mod => {
         const key = domain.id + '__' + mod.id;
         const prog = progress[key] || { currentDay: 0, completedAt: [] };
+        const hasCards = mod.cards && mod.cards.length > 0;
         const done = prog.currentDay >= mod.totalDays && mod.totalDays > 0;
         const active = prog.currentDay > 0 && prog.currentDay < mod.totalDays;
+        const available = hasCards && prog.currentDay === 0 && !done;
+
         let statusClass, statusIcon;
         if (done) { statusClass = 'done'; statusIcon = '✅'; }
         else if (active) { statusClass = 'active'; statusIcon = '🔥'; }
+        else if (available) { statusClass = 'active'; statusIcon = '📖'; }
         else { statusClass = 'locked'; statusIcon = '🔒'; }
 
-        const progressText = mod.totalDays > 0 ? `${prog.currentDay}/${mod.totalDays}` : '即将上线';
+        const progressText = hasCards ? `${prog.currentDay}/${mod.totalDays}` : '暂未开放';
+
+        let actionBtn = '';
+        if (active || available) {
+          actionBtn = `<span class="map-module-action" onclick="App.jumpToModule('${domain.id}', '${mod.id}')">${active ? '继续' : '开始'}</span>`;
+        } else if (done) {
+          actionBtn = '<span class="map-module-action" style="background:var(--green-bg);color:var(--green)">已完成</span>';
+        }
 
         return `<div class="map-module">
           <div class="map-module-status ${statusClass}">${statusIcon}</div>
@@ -351,8 +392,7 @@ const App = {
             <div class="map-module-name">${mod.name}</div>
             <div class="map-module-progress">${progressText}</div>
           </div>
-          ${active ? `<span class="map-module-action" onclick="App.jumpToModule('${domain.id}', '${mod.id}')">继续</span>` : ''}
-          ${done ? `<span class="map-module-action" style="background:var(--green-bg);color:var(--green)">已完成</span>` : ''}
+          ${actionBtn}
         </div>`;
       }).join('');
 
@@ -692,6 +732,51 @@ const App = {
       domains.map(d => `<option value="${d.id}">${d.icon} ${d.name}</option>`).join('');
 
     this.renderAnswers();
+    this.renderAssessments();
+  },
+
+  renderAssessments() {
+    const assessments = Storage.getAssessments().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const container = document.getElementById('assess-history-list');
+    if (!assessments.length) {
+      container.innerHTML = '<p class="insight-empty">暂无评估记录</p>';
+      return;
+    }
+    container.innerHTML = assessments.slice(0, 10).map(a => {
+      const d = new Date(a.createdAt);
+      const dateStr = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+      const weakEntries = Object.entries(a.weakAreas || {}).sort((x, y) => y[1] - x[1]).slice(0, 3);
+      const tagsHtml = weakEntries.length > 0
+        ? weakEntries.map(([area, score]) => `<span class="assess-history-tag ${score >= 2 ? 'weak' : ''}">${area}(${score})</span>`).join('')
+        : '<span class="assess-history-tag">无明显短板</span>';
+      return `<div class="assess-history-item" onclick="App.viewAssessmentDetail('${a.id}')">
+        <div class="assess-history-date">📊 ${dateStr} · 共${a.answers ? a.answers.length : '?'}题</div>
+        <div class="assess-history-tags">${tagsHtml}</div>
+      </div>`;
+    }).join('');
+  },
+
+  viewAssessmentDetail(id) {
+    const assessments = Storage.getAssessments();
+    const a = assessments.find(x => x.id === id);
+    if (!a) return;
+    const d = new Date(a.createdAt);
+    const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    const weakEntries = Object.entries(a.weakAreas || {}).sort((x, y) => y[1] - x[1]);
+    const bodyHtml = weakEntries.length > 0
+      ? weakEntries.map(([area, score]) => `<p style="margin-bottom:6px"><strong>${area}</strong>：得分 ${score}（越高越需关注）</p>`).join('')
+      : '<p>本次评估未发现明显短板。</p>';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `<div class="modal-card" style="max-height:70vh;overflow-y:auto;border-radius:var(--radius);">
+      <h3>📊 评估详情</h3>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">${dateStr} · 共${a.answers ? a.answers.length : '?'}题</p>
+      <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;font-size:14px;line-height:1.8">${bodyHtml}</div>
+      <div class="modal-actions"><button class="btn-primary" onclick="this.closest('.modal-overlay').remove()">关闭</button></div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   },
 
   renderAnswers() {
