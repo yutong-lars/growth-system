@@ -59,9 +59,11 @@
     <button class="btn-ghost" onclick="App.openCard()">回顾今日卡片</button>
   </div>
 
-  <section class="snippets-section" id="snippets-section">
-    <h3 class="snippets-title">🌍 今日视野</h3>
-    <div class="snippets-list" id="snippets-list"></div>
+  <section class="quiz-section" id="quiz-section">
+    <h3 class="quiz-title">🧠 今日挑战</h3>
+    <p class="quiz-sub">答对越多，题目越难。你的成长，系统看得见。</p>
+    <div class="quiz-list" id="quiz-list"></div>
+    <div class="quiz-stats-bar" id="quiz-stats-bar"></div>
   </section>
 </main>
 
@@ -138,11 +140,32 @@
   <button class="btn-primary full" onclick="App.goHome()">返回首页</button>
 </main>
 
-<!-- ==================== 成长地图 ==================== -->
+<!-- ==================== 成长推荐 ==================== -->
 <main class="page" id="page-map">
-  <h2 class="page-title">🗺️ 我的成长地图</h2>
-  <div class="map-list" id="map-list"></div>
-  <button class="btn-outline full" id="btn-add-domain" onclick="App.showAddDomain()">+ 添加新领域</button>
+  <h2 class="page-title">📚 为你推荐</h2>
+
+  <section class="growth-section" id="growth-mastery">
+    <h3 class="section-title">📊 知识掌握度</h3>
+    <div class="mastery-list" id="mastery-list">
+      <p class="insight-empty">完成今日挑战的问答后，这里会显示你的知识掌握情况</p>
+    </div>
+  </section>
+
+  <section class="growth-section">
+    <h3 class="section-title">🔍 薄弱环节分析</h3>
+    <div class="weakness-card" id="weakness-card">
+      <p class="insight-empty">系统会根据问答、评估和反思数据，分析你需要加强的领域</p>
+    </div>
+  </section>
+
+  <section class="growth-section">
+    <h3 class="section-title">📖 推荐学习内容</h3>
+    <div class="recommend-list" id="recommend-list">
+      <p class="insight-empty">确定薄弱环节后，这里会推荐匹配的知识卡片</p>
+    </div>
+  </section>
+
+  <button class="btn-outline full" onclick="App.navigate('domains')">📚 管理成长领域</button>
 </main>
 
 <!-- ==================== 领域管理 & 诊断 ==================== -->
@@ -151,8 +174,8 @@
 
   <section class="domain-section">
     <h3 class="section-title">我选择的领域</h3>
-    <div class="domain-select-list" id="domain-select-list"></div>
-    <button class="btn-ghost small" onclick="App.showAddDomain()">+ 添加领域</button>
+    <div class="domain-progress-list" id="domain-progress-list"></div>
+    <button class="btn-ghost small" onclick="App.showAddDomain()" style="margin-top:8px">+ 添加领域</button>
   </section>
 
   <section class="domain-section">

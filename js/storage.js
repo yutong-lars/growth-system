@@ -35,6 +35,45 @@ const Storage = {
   getUserProfile() { return this.get('profile') || { name: '', joinedAt: null }; },
   saveUserProfile(profile) { this.set('profile', profile); },
 
+  /* ---- 问答统计 ---- */
+  getQuizStats() { return this.get('quizStats') || {}; },
+  saveQuizStats(stats) { this.set('quizStats', stats); },
+
+  getQuizHistory() { return this.get('quizHistory') || []; },
+  saveQuizHistory(history) { this.set('quizHistory', history); },
+
+  recordQuizAnswer(quizId, domain, correct, chosenIndex) {
+    // 更新统计
+    const stats = this.getQuizStats();
+    if (!stats[domain]) {
+      stats[domain] = { totalAnswered: 0, correctCount: 0, currentDifficulty: 1 };
+    }
+    stats[domain].totalAnswered++;
+    if (correct) stats[domain].correctCount++;
+    Storage.saveQuizStats(stats);
+
+    // 更新历史
+    const history = this.getQuizHistory();
+    history.push({ quizId, domain, correct, chosenIndex, answeredAt: new Date().toISOString() });
+    Storage.saveQuizHistory(history);
+  },
+
+  getDomainQuizDifficulty(domain) {
+    const stats = this.getQuizStats();
+    if (!stats[domain]) return 1;
+
+    const s = stats[domain];
+    const accuracy = s.totalAnswered > 0 ? s.correctCount / s.totalAnswered : 0;
+    const enoughAtCurrent = s.totalAnswered >= 3;
+
+    // 正确率 > 70% 且当前难度答了 ≥ 3 题 → 解锁下一难度
+    if (accuracy >= 0.7 && enoughAtCurrent && s.currentDifficulty < 3) {
+      s.currentDifficulty++;
+      this.saveQuizStats(stats);
+    }
+    return s.currentDifficulty;
+  },
+
   /* ---- 初始化 ---- */
   init() {
     if (!this.getUserProfile().joinedAt) {
@@ -51,7 +90,7 @@ const Storage = {
   /* ---- 备份 ---- */
   exportAll() {
     return {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       profile: this.getUserProfile(),
       domains: this.getDomains(),
@@ -59,22 +98,28 @@ const Storage = {
       answers: this.getAnswers(),
       insights: this.getInsights(),
       assessments: this.getAssessments(),
+      quizStats: this.getQuizStats(),
+      quizHistory: this.getQuizHistory(),
     };
   },
 
   importAll(data) {
-    if (!data || data.version !== 1) throw new Error('无效的备份文件');
+    if (!data || (data.version !== 1 && data.version !== 2)) throw new Error('无效的备份文件');
     this.saveUserProfile(data.profile);
     this.saveDomains(data.domains);
     this.saveProgress(data.progress);
     this.saveAnswers(data.answers);
     this.saveInsights(data.insights);
     this.saveAssessments(data.assessments);
+    if (data.version >= 2) {
+      this.saveQuizStats(data.quizStats || {});
+      this.saveQuizHistory(data.quizHistory || []);
+    }
   },
 
   /* ---- 清除 ---- */
   clearAll() {
-    const keys = ['profile', 'domains', 'progress', 'answers', 'insights', 'assessments'];
+    const keys = ['profile', 'domains', 'progress', 'answers', 'insights', 'assessments', 'quizStats', 'quizHistory'];
     keys.forEach(k => this.remove(k));
     this.init();
   }

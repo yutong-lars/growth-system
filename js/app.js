@@ -64,12 +64,12 @@ const App = {
     if (navItem) navItem.classList.add('active');
 
     // 顶部栏
-    const titles = { home: '每日成长', map: '成长地图', domains: '领域管理', profile: '我的档案' };
+    const titles = { home: '每日成长', map: '成长推荐', domains: '领域管理', profile: '我的档案' };
     document.getElementById('top-bar-title').textContent = titles[page] || '';
 
     // 渲染各页
     if (page === 'home') this.renderHome();
-    if (page === 'map') this.renderMap();
+    if (page === 'map') this.renderGrowth();
     if (page === 'domains') this.renderDomains();
     if (page === 'profile') this.renderProfile();
 
@@ -100,7 +100,7 @@ const App = {
       document.getElementById('hint-completed').classList.add('hidden');
     }
 
-    this.renderSnippets();
+    this.renderQuizzes();
   },
 
   renderTodayCard() {
@@ -184,32 +184,157 @@ const App = {
     document.getElementById('streak-count').textContent = streak;
   },
 
-  renderSnippets() {
-    const allSnippets = ContentData.snippets;
-    if (!allSnippets || !allSnippets.length) return;
+  /* ==================== 问答系统 ==================== */
+  renderQuizzes() {
+    const allQuizzes = ContentData.quizzes;
+    if (!allQuizzes || !allQuizzes.length) return;
 
-    // 随机选3条，用日期做种子以保证同一天看到同样的
+    // 用日期做种子，保证同一天看到同样的题
     const today = new Date().toISOString().split('T')[0];
     const seed = today.split('-').reduce((s, n) => s + parseInt(n), 0);
-    const indices = [];
-    while (indices.length < 3 && indices.length < allSnippets.length) {
-      const idx = (seed + indices.length * 7) % allSnippets.length;
-      if (!indices.includes(idx)) indices.push(idx);
+
+    // 获取已答记录（今天）
+    const todayHistory = Storage.getQuizHistory().filter(h => h.answeredAt.startsWith(today));
+    const answeredIds = new Set(todayHistory.map(h => h.quizId));
+
+    // 统计各领域正确率，找薄弱领域
+    const stats = Storage.getQuizStats();
+    const domains = [...new Set(allQuizzes.map(q => q.domain))];
+    let weakDomain = null;
+    let lowestAccuracy = 1;
+    for (const d of domains) {
+      const s = stats[d];
+      if (!s || s.totalAnswered === 0) { weakDomain = d; break; }
+      const acc = s.correctCount / s.totalAnswered;
+      if (acc < lowestAccuracy) { lowestAccuracy = acc; weakDomain = d; }
     }
 
-    const container = document.getElementById('snippets-list');
-    container.innerHTML = indices.map(i => {
-      const s = allSnippets[i];
-      return `<div class="snippet-card" onclick="this.querySelector('.snippet-expand').classList.toggle('show')">
-        <div class="snippet-card-header">
-          <span class="snippet-domain-icon">${s.icon}</span>
-          <span class="snippet-domain-name">${s.domain}</span>
-          <span class="snippet-tag">${s.tag}</span>
+    const selected = [];
+    const usedIds = new Set();
+
+    // 每题：从对应领域选，取当前难度，排除已答
+    const pickQuiz = (domain, seedOffset) => {
+      const difficulty = Storage.getDomainQuizDifficulty(domain);
+      const candidates = allQuizzes.filter(q =>
+        q.domain === domain && q.difficulty === difficulty && !usedIds.has(q.id) && !answeredIds.has(q.id)
+      );
+      if (candidates.length === 0) {
+        // 降级：同领域任意难度
+        const fallback = allQuizzes.filter(q =>
+          q.domain === domain && !usedIds.has(q.id) && !answeredIds.has(q.id)
+        );
+        if (fallback.length === 0) {
+          // 跨领域随机
+          const any = allQuizzes.filter(q => !usedIds.has(q.id) && !answeredIds.has(q.id));
+          if (any.length === 0) return null;
+          return any[(seed + seedOffset) % any.length];
+        }
+        return fallback[(seed + seedOffset) % fallback.length];
+      }
+      return candidates[(seed + seedOffset) % candidates.length];
+    };
+
+    // 选3题：薄弱领域1题 + 随机领域1题 + 跨领域1题
+    const pick1 = pickQuiz(weakDomain || domains[0], 0);
+    if (pick1) { selected.push(pick1); usedIds.add(pick1.id); }
+
+    const randomDomain = domains[(seed * 3) % domains.length];
+    const pick2 = pickQuiz(randomDomain, 1);
+    if (pick2) { selected.push(pick2); usedIds.add(pick2.id); }
+
+    const crossDomain = domains[(seed * 7 + 2) % domains.length];
+    const pick3 = pickQuiz(crossDomain, 2);
+    if (pick3) { selected.push(pick3); usedIds.add(pick3.id); }
+
+    const container = document.getElementById('quiz-list');
+    const section = document.getElementById('quiz-section');
+    if (!selected.length) {
+      section.classList.add('hidden');
+      return;
+    }
+    section.classList.remove('hidden');
+
+    container.innerHTML = selected.map((q, qi) => {
+      const prevAnswer = todayHistory.find(h => h.quizId === q.id);
+      const answered = !!prevAnswer;
+      const chosen = prevAnswer ? prevAnswer.chosenIndex : -1;
+      return `<div class="quiz-card" id="quiz-${qi}" data-quiz-id="${q.id}">
+        <div class="quiz-card-header">
+          <span class="quiz-domain-name">${q.icon || '📝'} ${q.domain}</span>
+          <span class="quiz-difficulty">Lv.${q.difficulty}</span>
         </div>
-        <div class="snippet-body"><strong>${s.title}</strong><br>${s.body}</div>
-        <div class="snippet-expand">${s.extend}</div>
+        <div class="quiz-question">${q.question}</div>
+        <div class="quiz-options" id="quiz-opts-${qi}">
+          ${q.options.map((opt, oi) => {
+            let cls = 'quiz-option';
+            if (answered && oi === q.correctIndex) cls += ' chosen-correct';
+            else if (answered && oi === chosen && oi !== q.correctIndex) cls += ' chosen-wrong';
+            const disabled = answered ? 'disabled' : '';
+            return `<div class="${cls}" ${disabled} onclick="App.selectQuizAnswer(${qi}, ${oi})">${opt}</div>`;
+          }).join('')}
+        </div>
+        <div class="quiz-result ${answered ? (prevAnswer.correct ? 'correct' : 'wrong') : 'hidden'}" id="quiz-result-${qi}">
+          ${answered ? (prevAnswer.correct ? '✅ 回答正确！' : '❌ 回答错误') : ''}
+          <div class="quiz-explanation">${q.explanation}</div>
+        </div>
       </div>`;
     }).join('');
+
+    this.renderQuizStatsBar();
+  },
+
+  selectQuizAnswer(qi, chosenIndex) {
+    const container = document.getElementById('quiz-list');
+    const quizCards = container.querySelectorAll('.quiz-card');
+    if (qi >= quizCards.length) return;
+    const quizCard = quizCards[qi];
+
+    // 检查是否已答
+    if (quizCard.querySelector('.quiz-option.chosen-correct, .quiz-option.chosen-wrong')) return;
+
+    // 从 DOM 数据属性获取 quiz ID，查找题目
+    const quizId = quizCard.dataset.quizId;
+    const quiz = ContentData.quizzes.find(q => q.id === quizId);
+    if (!quiz) return;
+
+    const correct = chosenIndex === quiz.correctIndex;
+
+    // 记录答题
+    Storage.recordQuizAnswer(quiz.id, quiz.domain, correct, chosenIndex);
+
+    // 显示结果
+    const options = quizCard.querySelectorAll('.quiz-option');
+    options.forEach((opt, oi) => {
+      opt.classList.add('disabled');
+      if (oi === quiz.correctIndex) opt.classList.add('chosen-correct');
+      else if (oi === chosenIndex && !correct) opt.classList.add('chosen-wrong');
+    });
+
+    const resultDiv = quizCard.querySelector('.quiz-result');
+    resultDiv.classList.remove('hidden');
+    resultDiv.classList.add(correct ? 'correct' : 'wrong');
+    resultDiv.innerHTML = `
+      ${correct ? '✅ 回答正确！' : '❌ 回答错误'}
+      <div class="quiz-explanation">${quiz.explanation}</div>
+    `;
+
+    this.renderQuizStatsBar();
+  },
+
+  renderQuizStatsBar() {
+    const stats = Storage.getQuizStats();
+    const domains = Object.keys(stats);
+    const container = document.getElementById('quiz-stats-bar');
+    if (!domains.length) {
+      container.innerHTML = '';
+      return;
+    }
+    const entries = domains.map(d => {
+      const s = stats[d];
+      const pct = s.totalAnswered > 0 ? Math.round((s.correctCount / s.totalAnswered) * 100) : 0;
+      return `<span title="${d}: ${pct}% 正确率 (${s.correctCount || 0}/${s.totalAnswered || 0})">${d.slice(0,2)} Lv.${s.currentDifficulty || 1} ${pct}%</span>`;
+    }).join(' · ');
+    container.innerHTML = entries;
   },
 
   /* ==================== 打开卡片 → 回答页 ==================== */
@@ -355,55 +480,97 @@ const App = {
     this.navigate('home');
   },
 
-  /* ==================== 成长地图 ==================== */
-  renderMap() {
-    const domains = Storage.getDomains();
-    if (!domains) return;
-    const progress = Storage.getProgress();
+  /* ==================== 成长推荐 ==================== */
+  renderGrowth() {
+    const stats = Storage.getQuizStats();
+    const domains = [...new Set(ContentData.quizzes.map(q => q.domain))];
+    const knowledgeCards = ContentData.knowledgeCards || [];
 
-    const container = document.getElementById('map-list');
-    container.innerHTML = domains.map(domain => {
-      const modulesHtml = domain.modules.map(mod => {
-        const key = domain.id + '__' + mod.id;
-        const prog = progress[key] || { currentDay: 0, completedAt: [] };
-        const hasCards = mod.cards && mod.cards.length > 0;
-        const done = prog.currentDay >= mod.totalDays && mod.totalDays > 0;
-        const active = prog.currentDay > 0 && prog.currentDay < mod.totalDays;
-        const available = hasCards && prog.currentDay === 0 && !done;
-
-        let statusClass, statusIcon;
-        if (done) { statusClass = 'done'; statusIcon = '✅'; }
-        else if (active) { statusClass = 'active'; statusIcon = '🔥'; }
-        else if (available) { statusClass = 'active'; statusIcon = '📖'; }
-        else { statusClass = 'locked'; statusIcon = '🔒'; }
-
-        const progressText = hasCards ? `${prog.currentDay}/${mod.totalDays}` : '暂未开放';
-
-        let actionBtn = '';
-        if (active || available) {
-          actionBtn = `<span class="map-module-action" onclick="App.jumpToModule('${domain.id}', '${mod.id}')">${active ? '继续' : '开始'}</span>`;
-        } else if (done) {
-          actionBtn = '<span class="map-module-action" style="background:var(--green-bg);color:var(--green)">已完成</span>';
-        }
-
-        return `<div class="map-module">
-          <div class="map-module-status ${statusClass}">${statusIcon}</div>
-          <div class="map-module-info">
-            <div class="map-module-name">${mod.name}</div>
-            <div class="map-module-progress">${progressText}</div>
-          </div>
-          ${actionBtn}
+    // 1. 知识掌握度仪表盘
+    const masteryContainer = document.getElementById('mastery-list');
+    if (!Object.keys(stats).length) {
+      masteryContainer.innerHTML = '<p class="insight-empty">完成今日挑战的问答后，这里会显示你的知识掌握情况</p>';
+    } else {
+      masteryContainer.innerHTML = domains.map(d => {
+        const s = stats[d];
+        if (!s) return '';
+        const pct = s.totalAnswered > 0 ? Math.round((s.correctCount / s.totalAnswered) * 100) : 0;
+        let level = 'weak';
+        if (pct >= 70) level = 'strong';
+        else if (pct >= 40) level = 'medium';
+        return `<div class="mastery-row">
+          <span class="mastery-name">${d}</span>
+          <span class="mastery-stats">${s.correctCount || 0}/${s.totalAnswered || 0} 正确</span>
+          <div class="mastery-bar-wrap"><div class="mastery-bar-fill ${level}" style="width:${pct}%"></div></div>
         </div>`;
-      }).join('');
+      }).filter(Boolean).join('');
+    }
 
-      return `<div class="map-domain-card">
-        <div class="map-domain-header">
-          <span class="map-domain-icon">${domain.icon}</span>
-          <span class="map-domain-name">${domain.name}</span>
-        </div>
-        ${modulesHtml}
-      </div>`;
-    }).join('');
+    // 2. 薄弱环节分析
+    const weaknessContainer = document.getElementById('weakness-card');
+    const weakDomains = [];
+    for (const d of domains) {
+      const s = stats[d];
+      if (!s || s.totalAnswered === 0) {
+        weakDomains.push({ domain: d, reason: '尚未答题' });
+        continue;
+      }
+      const pct = s.correctCount / s.totalAnswered;
+      if (pct < 0.5) weakDomains.push({ domain: d, reason: `正确率仅 ${Math.round(pct * 100)}%` });
+    }
+
+    // 从评估中获取弱项
+    const assessments = Storage.getAssessments();
+    if (assessments.length > 0) {
+      const latest = assessments[assessments.length - 1];
+      const topWeak = Object.entries(latest.weakAreas || {}).sort((a, b) => b[1] - a[1]).slice(0, 2);
+      for (const [area, score] of topWeak) {
+        if (!weakDomains.find(w => w.domain === area) && score >= 1) {
+          weakDomains.push({ domain: area, reason: `评估弱项 (得分${score})` });
+        }
+      }
+    }
+
+    // 从诊断洞察中获取
+    const insights = Storage.getInsights().filter(i => i.type === 'weak_signal' && !i.read);
+    for (const ins of insights.slice(0, 2)) {
+      const domainName = ins.suggestion.split('的')[0] || ins.suggestion.slice(0, 8);
+      if (!weakDomains.find(w => w.domain === domainName)) {
+        weakDomains.push({ domain: domainName, reason: '诊断发现' });
+      }
+    }
+
+    if (!weakDomains.length) {
+      weaknessContainer.innerHTML = '<p class="insight-empty">系统会根据问答、评估和反思数据，分析你需要加强的领域</p>';
+    } else {
+      weaknessContainer.innerHTML = '<div class="weakness-tags">' + weakDomains.slice(0, 5).map(w =>
+        `<span class="weakness-tag">${w.domain}<small>（${w.reason}）</small></span>`
+      ).join('') + '</div>';
+    }
+
+    // 3. 推荐学习内容
+    const recommendContainer = document.getElementById('recommend-list');
+    const weakDomainNames = new Set(weakDomains.map(w => w.domain));
+    let recommended = knowledgeCards.filter(c => weakDomainNames.has(c.domain));
+    if (recommended.length === 0) {
+      // 无薄弱数据时随机推荐
+      const shuffled = [...knowledgeCards].sort(() => Math.random() - 0.5);
+      recommended = shuffled.slice(0, 3);
+    }
+    if (!recommended.length) {
+      recommendContainer.innerHTML = '<p class="insight-empty">确定薄弱环节后，这里会推荐匹配的知识卡片</p>';
+    } else {
+      recommendContainer.innerHTML = recommended.slice(0, 5).map(c =>
+        `<div class="recommend-card">
+          <div class="recommend-card-header">
+            <span class="recommend-domain">${c.domain}</span>
+            <span class="recommend-difficulty">Lv.${c.difficulty}</span>
+          </div>
+          <div class="recommend-topic">${c.topic}</div>
+          <div class="recommend-body">${c.body}</div>
+        </div>`
+      ).join('');
+    }
   },
 
   jumpToModule(domainId, moduleId) {
@@ -425,13 +592,47 @@ const App = {
   /* ==================== 领域管理 ==================== */
   renderDomains() {
     const domains = Storage.getDomains() || [];
-    const container = document.getElementById('domain-select-list');
-    container.innerHTML = domains.map(d => `
-      <div class="domain-select-item">
-        <span class="domain-select-name">${d.icon} ${d.name}</span>
-        <span class="domain-select-remove" onclick="App.removeDomain('${d.id}')" title="移除">×</span>
-      </div>
-    `).join('');
+    const progress = Storage.getProgress();
+    const container = document.getElementById('domain-progress-list');
+
+    if (!domains.length) {
+      container.innerHTML = '<p class="insight-empty">暂未添加领域，点击下方按钮开始</p>';
+    } else {
+      container.innerHTML = domains.map(domain => {
+        const modulesHtml = domain.modules.map(mod => {
+          const key = domain.id + '__' + mod.id;
+          const prog = progress[key] || { currentDay: 0, completedAt: [] };
+          const hasCards = mod.cards && mod.cards.length > 0;
+          const pct = hasCards && mod.totalDays > 0 ? Math.round((prog.currentDay / mod.totalDays) * 100) : 0;
+
+          let actionHtml = '';
+          if (hasCards) {
+            const nextDay = prog.currentDay + 1;
+            if (nextDay <= mod.totalDays) {
+              actionHtml = `<span class="dp-module-action" onclick="App.jumpToModule('${domain.id}', '${mod.id}')">${prog.currentDay > 0 ? '继续' : '开始'}</span>`;
+            } else {
+              actionHtml = '<span class="dp-module-action done">已完成</span>';
+            }
+          }
+
+          return `<div class="dp-module">
+            <span class="dp-module-status">${hasCards ? (prog.currentDay >= mod.totalDays ? '✅' : '📖') : '—'}</span>
+            <span class="dp-module-name">${mod.name} · ${hasCards ? prog.currentDay + '/' + mod.totalDays : '暂未开放'}</span>
+            <div class="dp-module-bar-wrap"><div class="dp-module-bar-fill" style="width:${pct}%"></div></div>
+            ${actionHtml}
+          </div>`;
+        }).join('');
+
+        return `<div class="domain-progress-card">
+          <div class="domain-progress-header">
+            <span class="dp-icon">${domain.icon}</span>
+            <span class="dp-name">${domain.name}</span>
+            <span class="dp-module-remove" onclick="App.removeDomain('${domain.id}')" title="移除">×</span>
+          </div>
+          <div class="domain-progress-modules">${modulesHtml}</div>
+        </div>`;
+      }).join('');
+    }
 
     // 诊断洞察
     this.renderInsights();
@@ -583,7 +784,7 @@ const App = {
 
     this.hideAddDomain();
     this.renderDomains();
-    this.renderMap();
+    this.renderGrowth();
 
     // 如果从首页来，刷新首页卡片
     if (this.state.currentPage === 'domains') {
@@ -604,7 +805,7 @@ const App = {
     Storage.saveProgress(progress);
 
     this.renderDomains();
-    this.renderMap();
+    this.renderGrowth();
   },
 
   /* ==================== 评估 ==================== */
