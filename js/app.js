@@ -10,6 +10,8 @@ const App = {
     assessmentIndex: 0,
     assessmentAnswers: [],
     selectedDomainTag: null,
+    psyMode: null,           // 'vent' | 'random' | 'explore'
+    psyCurrentPrompt: null,
   },
 
   /* ==================== 初始化 ==================== */
@@ -615,8 +617,14 @@ const App = {
             }
           }
 
+          // 专属心理师：无传统卡片，始终显示进入按钮
+          if (domain.id === 'psychologist') {
+            actionHtml = `<span class="dp-module-action" onclick="App.openPsychologistModal('${domain.id}', '${mod.id}')">进入</span>`;
+          }
+
+          const statusIcon = domain.id === 'psychologist' ? '💚' : (hasCards ? (prog.currentDay >= mod.totalDays ? '✅' : '📖') : '—');
           return `<div class="dp-module">
-            <span class="dp-module-status">${hasCards ? (prog.currentDay >= mod.totalDays ? '✅' : '📖') : '—'}</span>
+            <span class="dp-module-status">${statusIcon}</span>
             <span class="dp-module-name">${mod.name} · ${hasCards ? prog.currentDay + '/' + mod.totalDays : '暂未开放'}</span>
             <div class="dp-module-bar-wrap"><div class="dp-module-bar-fill" style="width:${pct}%"></div></div>
             ${actionHtml}
@@ -1078,6 +1086,296 @@ const App = {
     alert('所有数据已清除');
   },
 
+  /* ==================== 专属心理师 ==================== */
+  openPsychologistModal(domainId, moduleId) {
+    const existing = document.getElementById('modal-psychologist');
+    if (existing) existing.remove();
+
+    this.state.psyMode = null;
+    this.state.psyCurrentPrompt = null;
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-psychologist';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = this.buildPsychologistModalHTML();
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', e => {
+      if (e.target === modal) this.closePsychologistModal();
+    });
+
+    this.psyShowMainView();
+  },
+
+  buildPsychologistModalHTML() {
+    return `<div class="modal-card psy-modal-card">
+      <div class="psy-main-view" id="psy-main">
+        <div class="psy-header">
+          <span class="psy-icon-large">🧠</span>
+          <h3>专属心理师</h3>
+          <p class="psy-subtitle">在这里，我安静地陪伴你</p>
+        </div>
+        <div class="psy-three-buttons">
+          <button class="psy-btn-circle psy-btn-vent" onclick="App.psyStart('vent')">
+            <span class="psy-btn-icon">💬</span>
+            <div class="psy-btn-text">
+              <span class="psy-btn-label">想吐槽</span>
+              <span class="psy-btn-desc">说出生活的烦恼</span>
+            </div>
+          </button>
+          <button class="psy-btn-circle psy-btn-random" onclick="App.psyStart('random')">
+            <span class="psy-btn-icon">🎲</span>
+            <div class="psy-btn-text">
+              <span class="psy-btn-label">随机问题</span>
+              <span class="psy-btn-desc">回答一个有趣的问题</span>
+            </div>
+          </button>
+          <button class="psy-btn-circle psy-btn-explore" onclick="App.psyStart('explore')">
+            <span class="psy-btn-icon">🔍</span>
+            <div class="psy-btn-text">
+              <span class="psy-btn-label">自我窥探</span>
+              <span class="psy-btn-desc">探索亲密关系</span>
+            </div>
+          </button>
+        </div>
+        <div class="psy-history-link" onclick="App.psyShowHistory()">📋 查看历史记录</div>
+        <div class="modal-actions">
+          <button class="btn-ghost" onclick="App.closePsychologistModal()">关闭</button>
+        </div>
+      </div>
+
+      <div class="psy-chat-view hidden" id="psy-chat">
+        <div class="psy-chat-header">
+          <button class="psy-back-btn" onclick="App.psyBackToMain()">← 返回</button>
+          <span class="psy-chat-title" id="psy-chat-title"></span>
+        </div>
+        <div class="psy-chat-body">
+          <div class="psy-message psy-msg-system" id="psy-prompt-msg"></div>
+          <div class="psy-msg-user-container hidden" id="psy-user-msg-container">
+            <div class="psy-message psy-msg-user" id="psy-user-msg"></div>
+          </div>
+          <div class="psy-msg-ack-container hidden" id="psy-ack-msg-container">
+            <div class="psy-message psy-msg-system" id="psy-ack-msg"></div>
+          </div>
+        </div>
+        <div class="psy-chat-footer">
+          <div class="psy-input-area" id="psy-input-area">
+            <textarea class="psy-textarea" id="psy-textarea" placeholder="" rows="2"></textarea>
+            <button class="psy-submit-btn" onclick="App.psySubmit()">说完了</button>
+          </div>
+          <div class="psy-post-submit hidden" id="psy-post-submit">
+            <button class="psy-action-btn" onclick="App.psySameMode()">再来一次</button>
+            <button class="psy-action-btn psy-action-secondary" onclick="App.psyOtherMode()">换一种方式</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="psy-history-view hidden" id="psy-history">
+        <div class="psy-chat-header">
+          <button class="psy-back-btn" onclick="App.psyBackToMain()">← 返回</button>
+          <span>历史记录</span>
+        </div>
+        <div class="psy-history-list" id="psy-history-list"></div>
+        <p class="psy-history-empty hidden" id="psy-history-empty">暂无记录</p>
+      </div>
+    </div>`;
+  },
+
+  psyShowMainView() {
+    const main = document.getElementById('psy-main');
+    const chat = document.getElementById('psy-chat');
+    const history = document.getElementById('psy-history');
+    if (main) main.classList.remove('hidden');
+    if (chat) chat.classList.add('hidden');
+    if (history) history.classList.add('hidden');
+  },
+
+  psyStart(mode) {
+    const prompts = ContentData.psychologistPrompts;
+    let promptText = '';
+
+    if (mode === 'vent') {
+      promptText = prompts.vent.prompts[Math.floor(Math.random() * prompts.vent.prompts.length)];
+    } else if (mode === 'random') {
+      promptText = prompts.random.questions[Math.floor(Math.random() * prompts.random.questions.length)];
+    } else if (mode === 'explore') {
+      promptText = prompts.explore.prompts[Math.floor(Math.random() * prompts.explore.prompts.length)];
+    }
+
+    this.state.psyMode = mode;
+    this.state.psyCurrentPrompt = promptText;
+
+    const titles = { vent: '💬 想吐槽', random: '🎲 随机问题', explore: '🔍 自我窥探' };
+    document.getElementById('psy-chat-title').textContent = titles[mode];
+
+    const placeholders = {
+      vent: '在这里写下你想吐槽的事情...',
+      random: '写下你的答案和想法...',
+      explore: '写下你的思考和感受...'
+    };
+
+    document.getElementById('psy-prompt-msg').textContent = promptText;
+    document.getElementById('psy-textarea').placeholder = placeholders[mode];
+    document.getElementById('psy-textarea').value = '';
+    document.getElementById('psy-user-msg-container').classList.add('hidden');
+    document.getElementById('psy-ack-msg-container').classList.add('hidden');
+    document.getElementById('psy-input-area').classList.remove('hidden');
+    document.getElementById('psy-post-submit').classList.add('hidden');
+
+    document.getElementById('psy-main').classList.add('hidden');
+    document.getElementById('psy-chat').classList.remove('hidden');
+    document.getElementById('psy-history').classList.add('hidden');
+  },
+
+  psySubmit() {
+    const textarea = document.getElementById('psy-textarea');
+    const content = textarea.value.trim();
+    if (!content) {
+      textarea.focus();
+      textarea.style.borderColor = 'var(--red)';
+      setTimeout(() => textarea.style.borderColor = '', 800);
+      return;
+    }
+
+    const mode = this.state.psyMode;
+    const prompt = this.state.psyCurrentPrompt;
+    let acknowledgment = '';
+
+    if (mode === 'vent') {
+      acknowledgment = this.psyGetVentAcknowledgment(content);
+    } else if (mode === 'random') {
+      const list = ContentData.psychologistPrompts.random.acknowledgments;
+      acknowledgment = list[Math.floor(Math.random() * list.length)];
+    } else if (mode === 'explore') {
+      const list = ContentData.psychologistPrompts.explore.acknowledgments;
+      acknowledgment = list[Math.floor(Math.random() * list.length)];
+    }
+
+    this.psySaveSession(mode, prompt, content, acknowledgment);
+
+    document.getElementById('psy-user-msg').textContent = content;
+    document.getElementById('psy-user-msg-container').classList.remove('hidden');
+    document.getElementById('psy-ack-msg').textContent = '';
+    document.getElementById('psy-ack-msg-container').classList.remove('hidden');
+
+    this.psyTypewriterAck(acknowledgment, () => {
+      document.getElementById('psy-input-area').classList.add('hidden');
+      document.getElementById('psy-post-submit').classList.remove('hidden');
+    });
+  },
+
+  psyGetVentAcknowledgment(userText) {
+    const acknowledgments = ContentData.psychologistPrompts.vent.acknowledgments;
+    for (const entry of acknowledgments) {
+      for (const kw of entry.keywords) {
+        if (userText.includes(kw)) {
+          return entry.responses[Math.floor(Math.random() * entry.responses.length)];
+        }
+      }
+    }
+    const defaults = ContentData.psychologistPrompts.vent.defaultAcknowledgments;
+    return defaults[Math.floor(Math.random() * defaults.length)];
+  },
+
+  psyTypewriterAck(text, callback) {
+    const el = document.getElementById('psy-ack-msg');
+    let i = 0;
+    el.textContent = '';
+    const timer = setInterval(() => {
+      el.textContent += text[i];
+      i++;
+      if (i >= text.length) {
+        clearInterval(timer);
+        if (callback) callback();
+      }
+    }, 30);
+  },
+
+  psySaveSession(mode, prompt, userResponse, acknowledgment) {
+    const sessions = Storage.getPsychologistSessions();
+    sessions.push({
+      id: 'psy_' + Date.now(),
+      mode,
+      prompt,
+      userResponse,
+      acknowledgment,
+      createdAt: new Date().toISOString()
+    });
+    Storage.savePsychologistSessions(sessions);
+  },
+
+  psySameMode() {
+    this.psyStart(this.state.psyMode);
+  },
+
+  psyOtherMode() {
+    this.psyShowMainView();
+  },
+
+  psyBackToMain() {
+    this.psyShowMainView();
+  },
+
+  psyShowHistory() {
+    document.getElementById('psy-main').classList.add('hidden');
+    document.getElementById('psy-chat').classList.add('hidden');
+    document.getElementById('psy-history').classList.remove('hidden');
+
+    const sessions = Storage.getPsychologistSessions().slice().reverse();
+    const listContainer = document.getElementById('psy-history-list');
+    const emptyContainer = document.getElementById('psy-history-empty');
+
+    if (!sessions.length) {
+      listContainer.innerHTML = '';
+      emptyContainer.classList.remove('hidden');
+      return;
+    }
+
+    emptyContainer.classList.add('hidden');
+    const modeLabels = { vent: '💬 吐槽', random: '🎲 随机', explore: '🔍 探索' };
+
+    listContainer.innerHTML = sessions.map(s => {
+      const d = new Date(s.createdAt);
+      const dateStr = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      const preview = s.userResponse.length > 80 ? s.userResponse.slice(0, 80) + '...' : s.userResponse;
+      return `<div class="psy-history-item" onclick="App.psyViewSession('${s.id}')">
+        <div class="psy-history-meta">
+          <span>${dateStr}</span>
+          <span class="psy-history-mode">${modeLabels[s.mode] || s.mode}</span>
+        </div>
+        <div class="psy-history-preview">${this.escapeHtml(preview)}</div>
+      </div>`;
+    }).join('');
+  },
+
+  psyViewSession(sessionId) {
+    const sessions = Storage.getPsychologistSessions();
+    const s = sessions.find(x => x.id === sessionId);
+    if (!s) return;
+
+    const modeLabels = { vent: '💬 想吐槽', random: '🎲 随机问题', explore: '🔍 自我窥探' };
+
+    document.getElementById('psy-chat-title').textContent = modeLabels[s.mode] || s.mode;
+    document.getElementById('psy-prompt-msg').textContent = s.prompt;
+    document.getElementById('psy-user-msg').textContent = s.userResponse;
+    document.getElementById('psy-user-msg-container').classList.remove('hidden');
+    document.getElementById('psy-ack-msg').textContent = s.acknowledgment;
+    document.getElementById('psy-ack-msg-container').classList.remove('hidden');
+    document.getElementById('psy-input-area').classList.add('hidden');
+    document.getElementById('psy-post-submit').classList.remove('hidden');
+
+    document.getElementById('psy-main').classList.add('hidden');
+    document.getElementById('psy-chat').classList.remove('hidden');
+    document.getElementById('psy-history').classList.add('hidden');
+  },
+
+  closePsychologistModal() {
+    const modal = document.getElementById('modal-psychologist');
+    if (modal) modal.remove();
+    this.state.psyMode = null;
+    this.state.psyCurrentPrompt = null;
+  },
+
   /* ==================== 工具 ==================== */
   navigatePageOnly(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1089,6 +1387,8 @@ const App = {
 
   hideAllModals() {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
+    const psyModal = document.getElementById('modal-psychologist');
+    if (psyModal) psyModal.remove();
   },
 
   getDomainName(domainId) {

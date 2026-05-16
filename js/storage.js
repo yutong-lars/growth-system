@@ -42,6 +42,9 @@ const Storage = {
   getQuizHistory() { return this.get('quizHistory') || []; },
   saveQuizHistory(history) { this.set('quizHistory', history); },
 
+  getPsychologistSessions() { return this.get('psySessions') || []; },
+  savePsychologistSessions(sessions) { this.set('psySessions', sessions); },
+
   recordQuizAnswer(quizId, domain, correct, chosenIndex) {
     // 更新统计
     const stats = this.getQuizStats();
@@ -90,7 +93,7 @@ const Storage = {
   /* ---- 备份 ---- */
   exportAll() {
     return {
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       profile: this.getUserProfile(),
       domains: this.getDomains(),
@@ -100,11 +103,12 @@ const Storage = {
       assessments: this.getAssessments(),
       quizStats: this.getQuizStats(),
       quizHistory: this.getQuizHistory(),
+      psySessions: this.getPsychologistSessions(),
     };
   },
 
   importAll(data) {
-    if (!data || (data.version !== 1 && data.version !== 2)) throw new Error('无效的备份文件');
+    if (!data || ![1, 2, 3].includes(data.version)) throw new Error('无效的备份文件');
     this.saveUserProfile(data.profile);
     this.saveDomains(data.domains);
     this.saveProgress(data.progress);
@@ -115,11 +119,14 @@ const Storage = {
       this.saveQuizStats(data.quizStats || {});
       this.saveQuizHistory(data.quizHistory || []);
     }
+    if (data.version >= 3) {
+      this.savePsychologistSessions(data.psySessions || []);
+    }
   },
 
   /* ---- 清除 ---- */
   clearAll() {
-    const keys = ['profile', 'domains', 'progress', 'answers', 'insights', 'assessments', 'quizStats', 'quizHistory'];
+    const keys = ['profile', 'domains', 'progress', 'answers', 'insights', 'assessments', 'quizStats', 'quizHistory', 'psySessions'];
     keys.forEach(k => this.remove(k));
     this.init();
   }
