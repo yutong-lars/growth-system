@@ -914,38 +914,34 @@ body {
   .btn-primary { font-size: 15px; padding: 11px 0; }
 }
 
-/* ===== 专属心理师模态 ===== */
-#modal-psychologist .psy-modal-card {
-  height: 88vh;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 18px 28px;
-  overflow-y: auto;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-
-.psy-header {
+/* ===== 专属心理师 — 页面头部 ===== */
+.psy-page-header {
   text-align: center;
-  margin-bottom: 20px;
+  padding: 20px 20px 6px;
 }
-.psy-icon-large {
+.psy-page-icon {
   font-size: 48px;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.psy-subtitle {
+.psy-page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.psy-page-subtitle {
   font-size: 14px;
   color: var(--text-secondary);
   margin-top: 4px;
 }
 
-/* 三个圆形按钮 */
-.psy-three-buttons {
+/* 三个圆形入口 */
+.psy-page-buttons {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-bottom: 16px;
-  padding: 0 4px;
+  margin: 0 20px 16px;
 }
 
 .psy-btn-circle {
@@ -1000,18 +996,73 @@ body {
   margin-top: 2px;
 }
 
-.psy-history-link {
-  display: block;
-  text-align: center;
-  color: var(--primary);
+/* 分析卡片 */
+.psy-analysis-section {
+  margin: 20px;
+}
+.psy-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.psy-analysis-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 20px;
+}
+
+.psy-insight-card {
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.psy-insight-warn {
+  border-left: 3px solid #E8B56D;
+  background: #FFFDF7;
+}
+.psy-insight-summary {
+  border: 1.5px solid var(--primary-light);
+  background: var(--primary-bg);
+}
+.psy-insight-label {
   font-size: 14px;
-  cursor: pointer;
-  padding: 10px;
+  font-weight: 600;
+  color: var(--text);
   margin-bottom: 8px;
 }
-.psy-history-link:active { opacity: 0.7; }
+.psy-insight-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.psy-insight-tag {
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--primary-bg);
+  border-radius: 12px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.psy-insight-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+.psy-highlight {
+  color: var(--primary);
+  font-weight: 600;
+}
 
-/* 对话视图 */
+/* 对话视图（页面内嵌） */
+.psy-page-chat {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 60vh;
+}
 .psy-chat-header {
   display: flex;
   align-items: center;
@@ -1147,7 +1198,10 @@ body {
   border: 1.5px solid var(--primary);
 }
 
-/* 历史视图 */
+/* 历史记录 */
+.psy-history-section {
+  margin: 20px;
+}
 .psy-history-list {
   display: flex;
   flex-direction: column;

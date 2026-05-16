@@ -287,6 +287,82 @@
   </div>
 </div>
 
+<!-- ==================== 专属心理师 ==================== -->
+<main class="page" id="page-psychologist">
+  <div class="psy-page-header">
+    <span class="psy-page-icon">🧠</span>
+    <h2 class="psy-page-title">专属心理师</h2>
+    <p class="psy-page-subtitle">每一次倾诉，都让我更了解你</p>
+  </div>
+
+  <!-- 三个圆形入口 -->
+  <div class="psy-page-buttons" id="psy-page-buttons">
+    <button class="psy-btn-circle psy-btn-vent" onclick="App.psyStart('vent')">
+      <span class="psy-btn-icon">💬</span>
+      <div class="psy-btn-text">
+        <span class="psy-btn-label">想吐槽</span>
+        <span class="psy-btn-desc">说出生活的烦恼</span>
+      </div>
+    </button>
+    <button class="psy-btn-circle psy-btn-random" onclick="App.psyStart('random')">
+      <span class="psy-btn-icon">🎲</span>
+      <div class="psy-btn-text">
+        <span class="psy-btn-label">随机问题</span>
+        <span class="psy-btn-desc">回答一个有趣的问题</span>
+      </div>
+    </button>
+    <button class="psy-btn-circle psy-btn-explore" onclick="App.psyStart('explore')">
+      <span class="psy-btn-icon">🔍</span>
+      <div class="psy-btn-text">
+        <span class="psy-btn-label">自我窥探</span>
+        <span class="psy-btn-desc">探索亲密关系</span>
+      </div>
+    </button>
+  </div>
+
+  <!-- 对话区域（初始隐藏） -->
+  <div class="psy-page-chat hidden" id="psy-page-chat">
+    <div class="psy-chat-header">
+      <button class="psy-back-btn" onclick="App.psyBackToMain()">← 返回</button>
+      <span class="psy-chat-title" id="psy-chat-title"></span>
+    </div>
+    <div class="psy-chat-body">
+      <div class="psy-message psy-msg-system" id="psy-prompt-msg"></div>
+      <div class="psy-msg-user-container hidden" id="psy-user-msg-container">
+        <div class="psy-message psy-msg-user" id="psy-user-msg"></div>
+      </div>
+      <div class="psy-msg-ack-container hidden" id="psy-ack-msg-container">
+        <div class="psy-message psy-msg-system" id="psy-ack-msg"></div>
+      </div>
+    </div>
+    <div class="psy-chat-footer">
+      <div class="psy-input-area" id="psy-input-area">
+        <textarea class="psy-textarea" id="psy-textarea" placeholder="" rows="2"></textarea>
+        <button class="psy-submit-btn" onclick="App.psySubmit()">说完了</button>
+      </div>
+      <div class="psy-post-submit hidden" id="psy-post-submit">
+        <button class="psy-action-btn" onclick="App.psySameMode()">再来一次</button>
+        <button class="psy-action-btn psy-action-secondary" onclick="App.psyOtherMode()">换一种方式</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 心理画像分析 -->
+  <section class="psy-analysis-section" id="psy-analysis">
+    <h3 class="psy-section-title">🔍 你的心理画像</h3>
+    <div class="psy-analysis-content" id="psy-analysis-content">
+      <p class="insight-empty">完成几次对话后，系统会在这里帮你发现隐藏的模式和盲点</p>
+    </div>
+  </section>
+
+  <!-- 历史记录 -->
+  <section class="psy-history-section">
+    <h3 class="psy-section-title">📋 历史记录</h3>
+    <div class="psy-history-list" id="psy-history-list"></div>
+    <p class="psy-history-empty hidden" id="psy-history-empty">暂无记录</p>
+  </section>
+</main>
+
 <!-- 底部导航 -->
 <nav class="bottom-nav">
   <div class="nav-item active" data-page="home" onclick="App.navigate('home')">
@@ -300,6 +376,10 @@
   <div class="nav-item" data-page="domains" onclick="App.navigate('domains')">
     <span class="nav-icon">📚</span>
     <span class="nav-label">领域</span>
+  </div>
+  <div class="nav-item" data-page="psychologist" onclick="App.navigate('psychologist')">
+    <span class="nav-icon">🧠</span>
+    <span class="nav-label">心理</span>
   </div>
   <div class="nav-item" data-page="profile" onclick="App.navigate('profile')">
     <span class="nav-icon">👤</span>

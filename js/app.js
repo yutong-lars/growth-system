@@ -66,13 +66,14 @@ const App = {
     if (navItem) navItem.classList.add('active');
 
     // 顶部栏
-    const titles = { home: '每日成长', map: '成长推荐', domains: '领域管理', profile: '我的档案' };
+    const titles = { home: '每日成长', map: '成长推荐', domains: '领域管理', psychologist: '专属心理师', profile: '我的档案' };
     document.getElementById('top-bar-title').textContent = titles[page] || '';
 
     // 渲染各页
     if (page === 'home') this.renderHome();
     if (page === 'map') this.renderGrowth();
     if (page === 'domains') this.renderDomains();
+    if (page === 'psychologist') this.renderPsychologist();
     if (page === 'profile') this.renderProfile();
 
     // 回到顶部
@@ -617,12 +618,7 @@ const App = {
             }
           }
 
-          // 专属心理师：无传统卡片，始终显示进入按钮
-          if (domain.id === 'psychologist') {
-            actionHtml = `<span class="dp-module-action" onclick="App.openPsychologistModal('${domain.id}', '${mod.id}')">进入</span>`;
-          }
-
-          const statusIcon = domain.id === 'psychologist' ? '💚' : (hasCards ? (prog.currentDay >= mod.totalDays ? '✅' : '📖') : '—');
+          const statusIcon = hasCards ? (prog.currentDay >= mod.totalDays ? '✅' : '📖') : '—';
           return `<div class="dp-module">
             <span class="dp-module-status">${statusIcon}</span>
             <span class="dp-module-name">${mod.name} · ${hasCards ? prog.currentDay + '/' + mod.totalDays : '暂未开放'}</span>
@@ -1087,107 +1083,17 @@ const App = {
   },
 
   /* ==================== 专属心理师 ==================== */
-  openPsychologistModal(domainId, moduleId) {
-    const existing = document.getElementById('modal-psychologist');
-    if (existing) existing.remove();
-
-    this.state.psyMode = null;
-    this.state.psyCurrentPrompt = null;
-
-    const modal = document.createElement('div');
-    modal.id = 'modal-psychologist';
-    modal.className = 'modal-overlay';
-    modal.innerHTML = this.buildPsychologistModalHTML();
-    document.body.appendChild(modal);
-
-    modal.addEventListener('click', e => {
-      if (e.target === modal) this.closePsychologistModal();
-    });
-
+  renderPsychologist() {
     this.psyShowMainView();
-  },
-
-  buildPsychologistModalHTML() {
-    return `<div class="modal-card psy-modal-card">
-      <div class="psy-main-view" id="psy-main">
-        <div class="psy-header">
-          <span class="psy-icon-large">🧠</span>
-          <h3>专属心理师</h3>
-          <p class="psy-subtitle">在这里，我安静地陪伴你</p>
-        </div>
-        <div class="psy-three-buttons">
-          <button class="psy-btn-circle psy-btn-vent" onclick="App.psyStart('vent')">
-            <span class="psy-btn-icon">💬</span>
-            <div class="psy-btn-text">
-              <span class="psy-btn-label">想吐槽</span>
-              <span class="psy-btn-desc">说出生活的烦恼</span>
-            </div>
-          </button>
-          <button class="psy-btn-circle psy-btn-random" onclick="App.psyStart('random')">
-            <span class="psy-btn-icon">🎲</span>
-            <div class="psy-btn-text">
-              <span class="psy-btn-label">随机问题</span>
-              <span class="psy-btn-desc">回答一个有趣的问题</span>
-            </div>
-          </button>
-          <button class="psy-btn-circle psy-btn-explore" onclick="App.psyStart('explore')">
-            <span class="psy-btn-icon">🔍</span>
-            <div class="psy-btn-text">
-              <span class="psy-btn-label">自我窥探</span>
-              <span class="psy-btn-desc">探索亲密关系</span>
-            </div>
-          </button>
-        </div>
-        <div class="psy-history-link" onclick="App.psyShowHistory()">📋 查看历史记录</div>
-        <div class="modal-actions">
-          <button class="btn-ghost" onclick="App.closePsychologistModal()">关闭</button>
-        </div>
-      </div>
-
-      <div class="psy-chat-view hidden" id="psy-chat">
-        <div class="psy-chat-header">
-          <button class="psy-back-btn" onclick="App.psyBackToMain()">← 返回</button>
-          <span class="psy-chat-title" id="psy-chat-title"></span>
-        </div>
-        <div class="psy-chat-body">
-          <div class="psy-message psy-msg-system" id="psy-prompt-msg"></div>
-          <div class="psy-msg-user-container hidden" id="psy-user-msg-container">
-            <div class="psy-message psy-msg-user" id="psy-user-msg"></div>
-          </div>
-          <div class="psy-msg-ack-container hidden" id="psy-ack-msg-container">
-            <div class="psy-message psy-msg-system" id="psy-ack-msg"></div>
-          </div>
-        </div>
-        <div class="psy-chat-footer">
-          <div class="psy-input-area" id="psy-input-area">
-            <textarea class="psy-textarea" id="psy-textarea" placeholder="" rows="2"></textarea>
-            <button class="psy-submit-btn" onclick="App.psySubmit()">说完了</button>
-          </div>
-          <div class="psy-post-submit hidden" id="psy-post-submit">
-            <button class="psy-action-btn" onclick="App.psySameMode()">再来一次</button>
-            <button class="psy-action-btn psy-action-secondary" onclick="App.psyOtherMode()">换一种方式</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="psy-history-view hidden" id="psy-history">
-        <div class="psy-chat-header">
-          <button class="psy-back-btn" onclick="App.psyBackToMain()">← 返回</button>
-          <span>历史记录</span>
-        </div>
-        <div class="psy-history-list" id="psy-history-list"></div>
-        <p class="psy-history-empty hidden" id="psy-history-empty">暂无记录</p>
-      </div>
-    </div>`;
+    this.renderPsyHistory();
+    this.psyRunAnalysis();
   },
 
   psyShowMainView() {
-    const main = document.getElementById('psy-main');
-    const chat = document.getElementById('psy-chat');
-    const history = document.getElementById('psy-history');
-    if (main) main.classList.remove('hidden');
+    const btns = document.getElementById('psy-page-buttons');
+    const chat = document.getElementById('psy-page-chat');
+    if (btns) btns.classList.remove('hidden');
     if (chat) chat.classList.add('hidden');
-    if (history) history.classList.add('hidden');
   },
 
   psyStart(mode) {
@@ -1222,9 +1128,11 @@ const App = {
     document.getElementById('psy-input-area').classList.remove('hidden');
     document.getElementById('psy-post-submit').classList.add('hidden');
 
-    document.getElementById('psy-main').classList.add('hidden');
-    document.getElementById('psy-chat').classList.remove('hidden');
-    document.getElementById('psy-history').classList.add('hidden');
+    document.getElementById('psy-page-buttons').classList.add('hidden');
+    document.getElementById('psy-page-chat').classList.remove('hidden');
+
+    // 滚动到对话区域
+    document.getElementById('psy-page-chat').scrollIntoView({ behavior: 'smooth' });
   },
 
   psySubmit() {
@@ -1261,6 +1169,9 @@ const App = {
     this.psyTypewriterAck(acknowledgment, () => {
       document.getElementById('psy-input-area').classList.add('hidden');
       document.getElementById('psy-post-submit').classList.remove('hidden');
+      // 刷新分析和历史
+      this.renderPsyHistory();
+      this.psyRunAnalysis();
     });
   },
 
@@ -1310,17 +1221,16 @@ const App = {
 
   psyOtherMode() {
     this.psyShowMainView();
+    document.getElementById('psy-page-chat').scrollIntoView({ behavior: 'smooth' });
   },
 
   psyBackToMain() {
     this.psyShowMainView();
+    window.scrollTo(0, 0);
   },
 
-  psyShowHistory() {
-    document.getElementById('psy-main').classList.add('hidden');
-    document.getElementById('psy-chat').classList.add('hidden');
-    document.getElementById('psy-history').classList.remove('hidden');
-
+  /* ---- 历史记录 ---- */
+  renderPsyHistory() {
     const sessions = Storage.getPsychologistSessions().slice().reverse();
     const listContainer = document.getElementById('psy-history-list');
     const emptyContainer = document.getElementById('psy-history-empty');
@@ -1364,16 +1274,124 @@ const App = {
     document.getElementById('psy-input-area').classList.add('hidden');
     document.getElementById('psy-post-submit').classList.remove('hidden');
 
-    document.getElementById('psy-main').classList.add('hidden');
-    document.getElementById('psy-chat').classList.remove('hidden');
-    document.getElementById('psy-history').classList.add('hidden');
+    document.getElementById('psy-page-buttons').classList.add('hidden');
+    document.getElementById('psy-page-chat').classList.remove('hidden');
+    document.getElementById('psy-page-chat').scrollIntoView({ behavior: 'smooth' });
   },
 
-  closePsychologistModal() {
-    const modal = document.getElementById('modal-psychologist');
-    if (modal) modal.remove();
-    this.state.psyMode = null;
-    this.state.psyCurrentPrompt = null;
+  /* ---- 心理画像分析引擎 ---- */
+  psyRunAnalysis() {
+    const sessions = Storage.getPsychologistSessions();
+    const container = document.getElementById('psy-analysis-content');
+
+    if (sessions.length < 2) {
+      container.innerHTML = '<p class="insight-empty">完成几次对话后，系统会在这里帮你发现隐藏的模式和盲点</p>';
+      return;
+    }
+
+    // 1. 关键词频率分析
+    const allCategories = [
+      { name: '工作压力', keywords: ['工作','加班','老板','同事','职场','辞职','面试','任务','项目','会议','职业'] },
+      { name: '人际关系', keywords: ['朋友','友谊','背叛','疏远','社交','人际','孤立','冷漠','聚会'] },
+      { name: '家庭关系', keywords: ['父母','家人','家庭','妈妈','爸爸','亲戚','兄弟姐妹','回家','吵架'] },
+      { name: '亲密关系', keywords: ['爱情','恋爱','分手','伴侣','感情','喜欢','对象','男朋友','女朋友','暧昧'] },
+      { name: '自我认同', keywords: ['自己','自卑','自信','不够好','失败','没用','价值','内向','敏感'] },
+      { name: '焦虑未来', keywords: ['焦虑','迷茫','未来','压力','考试','选择','方向','出路','不知道怎么办'] },
+      { name: '边界与自由', keywords: ['自由','控制','边界','拒绝','不想','被迫','应该','必须','妥协','迁就'] },
+      { name: '孤独感', keywords: ['孤独','寂寞','一个人','没人理解','不被看见','忽略'] }
+    ];
+
+    const categoryCounts = {};
+    allCategories.forEach(c => { categoryCounts[c.name] = 0; });
+
+    let totalKeywordsFound = 0;
+    sessions.forEach(s => {
+      const text = s.userResponse;
+      allCategories.forEach(c => {
+        c.keywords.forEach(kw => {
+          if (text.includes(kw)) {
+            categoryCounts[c.name]++;
+            totalKeywordsFound++;
+          }
+        });
+      });
+    });
+
+    // 排序取前3
+    const topCategories = Object.entries(categoryCounts)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    // 2. 模式对比：吐槽 vs 探索
+    const ventSessions = sessions.filter(s => s.mode === 'vent');
+    const exploreSessions = sessions.filter(s => s.mode === 'explore');
+
+    // 吐槽中提到但探索中从未涉及的领域 → 潜在的未认识领域
+    const ventCategories = new Set();
+    ventSessions.forEach(s => {
+      allCategories.forEach(c => {
+        c.keywords.forEach(kw => { if (s.userResponse.includes(kw)) ventCategories.add(c.name); });
+      });
+    });
+    const exploreCategories = new Set();
+    exploreSessions.forEach(s => {
+      allCategories.forEach(c => {
+        c.keywords.forEach(kw => { if (s.userResponse.includes(kw)) exploreCategories.add(c.name); });
+      });
+    });
+
+    const blindSpots = [...ventCategories].filter(c => !exploreCategories.has(c));
+
+    // 3. 生成分析HTML
+    let html = '';
+
+    // 核心关注领域
+    if (topCategories.length > 0) {
+      html += '<div class="psy-insight-card"><div class="psy-insight-label">📊 你最常提到的困扰</div>';
+      html += '<div class="psy-insight-tags">' + topCategories.map(([name, count]) =>
+        `<span class="psy-insight-tag"><strong>${name}</strong> 提及${count}次</span>`
+      ).join('') + '</div></div>';
+    }
+
+    // 潜在盲点
+    if (blindSpots.length > 0) {
+      html += '<div class="psy-insight-card psy-insight-warn"><div class="psy-insight-label">🟡 你可能还没意识到的</div>';
+      html += '<p class="psy-insight-text">你在吐槽中频繁提到<span class="psy-highlight">' + blindSpots.slice(0, 2).join('、') + '</span>相关的话题，但在自我探索中却很少深入思考这些方面。这些可能是你忽视的成长盲区。</p></div>';
+    }
+
+    // 矛盾检测
+    const freedomMentions = sessions.filter(s => s.userResponse.includes('自由')).length;
+    const compromiseMentions = sessions.filter(s => s.userResponse.includes('妥协') || s.userResponse.includes('迁就')).length;
+    if (freedomMentions > 0 && compromiseMentions > 0) {
+      html += '<div class="psy-insight-card psy-insight-warn"><div class="psy-insight-label">🔍 注意到的矛盾</div>';
+      html += '<p class="psy-insight-text">你既渴望<span class="psy-highlight">自由</span>（提到' + freedomMentions + '次），又常常<span class="psy-highlight">妥协迁就</span>（提到' + compromiseMentions + '次）。这两者之间的冲突可能是你内心压力的一个重要来源。</p></div>';
+    }
+
+    // 情绪基调
+    const positiveWords = ['开心','快乐','幸福','满足','感恩','幸运','美好','喜欢','热爱','期待'];
+    const negativeWords = ['难过','痛苦','焦虑','害怕','恐惧','孤独','委屈','愤怒','失望','累'];
+    let posCount = 0, negCount = 0;
+    sessions.forEach(s => {
+      positiveWords.forEach(w => { if (s.userResponse.includes(w)) posCount++; });
+      negativeWords.forEach(w => { if (s.userResponse.includes(w)) negCount++; });
+    });
+    if (negCount > posCount && negCount > 2) {
+      html += '<div class="psy-insight-card"><div class="psy-insight-label">💭 情绪观察</div>';
+      html += '<p class="psy-insight-text">你的表达中负面情绪词（' + negCount + '次）明显多于正面（' + posCount + '次）。这不代表你不好——它说明你可能正处在需要更多自我关怀的阶段。</p></div>';
+    } else if (posCount > negCount && posCount > 2) {
+      html += '<div class="psy-insight-card"><div class="psy-insight-label">💭 情绪观察</div>';
+      html += '<p class="psy-insight-text">尽管有烦恼，你的表达中正面情绪词（' + posCount + '次）多于负面（' + negCount + '次）。你内心有一种韧性在支撑着你。</p></div>';
+    }
+
+    // 总结
+    if (totalKeywordsFound > 5) {
+      const topName = topCategories.length > 0 ? topCategories[0][0] : '';
+      html += '<div class="psy-insight-card psy-insight-summary"><div class="psy-insight-label">🧠 小结</div>';
+      html += '<p class="psy-insight-text">根据你的' + sessions.length + '次对话，' + (topName ? '你目前最需要关注的是<span class="psy-highlight">' + topName + '</span>方面。' : '') + (blindSpots.length > 0 ? '同时，<span class="psy-highlight">' + blindSpots[0] + '</span>可能是你一直回避但值得深入探索的领域。' : '') + '每一次倾诉和反思，都让你更接近真实的自己。</p></div>';
+    }
+
+    container.innerHTML = html || '<p class="insight-empty">继续对话，系统会逐渐发现更多关于你的模式</p>';
   },
 
   /* ==================== 工具 ==================== */
@@ -1387,8 +1405,6 @@ const App = {
 
   hideAllModals() {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
-    const psyModal = document.getElementById('modal-psychologist');
-    if (psyModal) psyModal.remove();
   },
 
   getDomainName(domainId) {
